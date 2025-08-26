@@ -1,0 +1,42 @@
+version: '3'
+services:
+  app:
+    build: .
+    ports:
+      - "9876:9876"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=jdbc:postgresql://db:5432/rosstudentdb
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+    networks:
+      - app-network
+
+  db:
+    image: postgres:17
+    ports:
+      - "5433:5432"  # Порт 5433 на хосте, чтобы не конфликтовать с вашим локальным PostgreSQL
+    environment:
+      - POSTGRES_DB=rosstudentdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Монтируем файл дампа, который будем восстанавливать
+      - ./fixed_backup.sql:/docker-entrypoint-initdb.d/00-backup.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rosstudentdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
